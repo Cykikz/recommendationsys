@@ -1,1 +1,1 @@
-web: gunicorn app:fertilizer_api.py
+web: gunicorn fertilizer_api:app
