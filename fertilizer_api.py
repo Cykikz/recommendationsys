@@ -1,8 +1,9 @@
 from flask import Flask, request, jsonify
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
+from waitress import serve
 
-app = Flask(__name__)
+app = Flask(__name__)  # <-- This line was missing!
 
 # Load and prepare data
 data = pd.read_csv("chittor_final1.csv")
@@ -29,7 +30,11 @@ def recommend():
     land_size = float(content.get("land_size_m2", 0))
     fallow_years = int(content.get("fallow_years", 0))
 
-    row = data[(data['Soil_type'] == soil_type) & (data['Crop_type'] == crop_type)]
+    # Encode input values to match dataset format
+    encoded_soil = encode_soil.transform([soil_type])[0]
+    encoded_crop = encode_crop.transform([crop_type])[0]
+
+    row = data[(data['Soil_Type'] == encoded_soil) & (data['Crop_Type'] == encoded_crop)]
     if row.empty:
         return jsonify({"error": "No matching data found"}), 404
 
@@ -47,4 +52,4 @@ def recommend():
         return jsonify({"message": "No deficiency, manure recommended"})
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=int(os.getenv("PORT", 5000)))
+    serve(app, host="0.0.0.0", port=8080)
