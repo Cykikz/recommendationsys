@@ -2,7 +2,7 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import logging
 
-# Initialize app and logger
+# Initialize Flask app and logger
 app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
@@ -15,49 +15,60 @@ except Exception as e:
     logger.error(f"Error loading CSV: {e}")
     data = None
 
-# Root route for testing
+# Root route for health check
 @app.route("/")
 def home():
-    return "✅ KrishiMitra API is running!"
+    return "✅ KrishiMitra Fertilizer API is running!"
 
-# Recommendation route
+# Fertilizer recommendation route
 @app.route("/recommend", methods=["POST"])
-def recommend():
-    # Check if the data is available
+def recommend_fertilizer():
     if data is None or data.empty:
-        logger.error("Data not loaded or is empty")
         return jsonify({"error": "Data not available"}), 500
 
     try:
-        # Get JSON request from the client
         req = request.get_json()
-        logger.debug(f"Request received: {req}")
+        soil = req.get("soil_type", "").strip().lower()
+        crop = req.get("crop_type", "").strip().lower()
 
-        # Extract soil type from the request
-        soil = req.get("soil_type", "").lower()
+        logger.debug(f"Request received: soil_type={soil}, crop_type={crop}")
 
-        # Filter data based on soil type only
-        logger.debug(f"Filtering data for soil_type={soil}")
-
+        # Filter based on soil and crop
         filtered = data[
-            data["Soil_type"].str.lower() == soil
+            (data["Soil_type"].str.lower() == soil) &
+            (data["Crop_type"].str.lower() == crop)
             ]
 
         if filtered.empty:
-            logger.warning(f"No match found for soil_type={soil}")
-            return jsonify({"error": "No matching crop found"}), 404
+            return jsonify({"error": "No matching data found"}), 404
 
-        # Get the recommended crop
-        crop = filtered.iloc[0]["Crop_type"]
-        logger.debug(f"Recommended crop: {crop}")
+        # Get average nutrient values for the match
+        nutrient_data = filtered[["Avail_N", "Avail_P", "Exch_K"]].mean()
 
-        # Return the recommended crop as a JSON response
-        return jsonify({"recommended_crop": crop})
+        def classify(value, nutrient_type):
+            if nutrient_type == "N":
+                return "Low" if value < 100 else "Medium" if value < 250 else "High"
+            elif nutrient_type == "P":
+                return "Low" if value < 10 else "Medium" if value < 25 else "High"
+            elif nutrient_type == "K":
+                return "Low" if value < 100 else "Medium" if value < 200 else "High"
+
+        n_status = classify(nutrient_data["Avail_N"], "N")
+        p_status = classify(nutrient_data["Avail_P"], "P")
+        k_status = classify(nutrient_data["Exch_K"], "K")
+
+        recommendation = f"Apply NPK fertilizer ({n_status} Nitrogen, {p_status} Phosphorus, {k_status} Potassium)"
+
+        return jsonify({
+            "soil_type": soil,
+            "crop_type": crop,
+            "recommendation": recommendation
+        })
 
     except Exception as e:
-        logger.error(f"Recommendation error: {e}")
+        logger.error(f"Fertilizer recommendation error: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
 
-# Optional main block for local testing
+# Run locally (optional)
 if __name__ == "__main__":
     app.run(debug=True)
