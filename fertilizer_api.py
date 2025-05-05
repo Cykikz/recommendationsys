@@ -3,14 +3,20 @@ import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from waitress import serve
 
-app = Flask(__name__)  # <-- This line was missing!
+app = Flask(__name__)  # MUST be before @app.route
 
 # Load and prepare data
-data = pd.read_csv("chittor_final1.csv")
+try:
+    data = pd.read_csv("chittor_final1.csv")
+except Exception as e:
+    print(f"❌ Error loading CSV: {e}")
+    data = pd.DataFrame()
+
 encode_soil = LabelEncoder()
 encode_crop = LabelEncoder()
-data['Soil_Type'] = encode_soil.fit_transform(data['Soil_type'])
-data['Crop_Type'] = encode_crop.fit_transform(data['Crop_type'])
+if not data.empty:
+    data['Soil_Type'] = encode_soil.fit_transform(data['Soil_type'])
+    data['Crop_Type'] = encode_crop.fit_transform(data['Crop_type'])
 
 thresholds = {
     'Avail_P': 10, 'Exch_K': 50, 'Avail_Ca': 200, 'Avail_Mg': 50,
@@ -24,17 +30,16 @@ application_rates = {
 
 @app.route("/recommend", methods=["POST"])
 def recommend():
+    if data.empty:
+        return jsonify({"error": "Data not loaded"}), 500
+
     content = request.json
     soil_type = content.get("soil_type")
     crop_type = content.get("crop_type")
     land_size = float(content.get("land_size_m2", 0))
     fallow_years = int(content.get("fallow_years", 0))
 
-    # Encode input values to match dataset format
-    encoded_soil = encode_soil.transform([soil_type])[0]
-    encoded_crop = encode_crop.transform([crop_type])[0]
-
-    row = data[(data['Soil_Type'] == encoded_soil) & (data['Crop_Type'] == encoded_crop)]
+    row = data[(data['Soil_type'] == soil_type) & (data['Crop_type'] == crop_type)]
     if row.empty:
         return jsonify({"error": "No matching data found"}), 404
 
@@ -52,4 +57,5 @@ def recommend():
         return jsonify({"message": "No deficiency, manure recommended"})
 
 if __name__ == "__main__":
+    print("✅ Starting Flask app...")
     serve(app, host="0.0.0.0", port=8080)
