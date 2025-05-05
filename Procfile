@@ -1,1 +1,1 @@
-web: gunicorn src.main.python.fertilizer_api:app
+web: waitress-serve --port=8080 fertilizer_api:app
