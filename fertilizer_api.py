@@ -33,20 +33,18 @@ def recommend():
         req = request.get_json()
         logger.debug(f"Request received: {req}")
 
-        # Extract soil type and fallow period from the request
+        # Extract soil type from the request
         soil = req.get("soil_type", "").lower()
-        fallow = req.get("fallow_period", "").lower()
 
-        # Filter data based on soil type and fallow period
-        logger.debug(f"Filtering data for soil_type={soil} and fallow_period={fallow}")
+        # Filter data based on soil type only
+        logger.debug(f"Filtering data for soil_type={soil}")
 
         filtered = data[
-            (data["Soil_type"].str.lower() == soil) &
-            (data["Fallow_period"].str.lower() == fallow)
+            data["Soil_type"].str.lower() == soil
             ]
 
         if filtered.empty:
-            logger.warning(f"No match found for soil_type={soil} and fallow_period={fallow}")
+            logger.warning(f"No match found for soil_type={soil}")
             return jsonify({"error": "No matching crop found"}), 404
 
         # Get the recommended crop
