@@ -2,46 +2,49 @@ from flask import Flask, request, jsonify
 import pandas as pd
 import logging
 
-# Enable debug-level logging
+# Initialize app and logger
+app = Flask(__name__)
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger(__name__)
 
-app = Flask(__name__)
-
-# Load CSV at startup
+# Load CSV
 try:
     data = pd.read_csv("chittor_final1.csv")
-    logger.info("CSV file loaded successfully.")
+    logger.info("CSV loaded successfully.")
 except Exception as e:
-    logger.error(f"Failed to load CSV: {e}")
-    data = None  # Prevents app from crashing completely
+    logger.error(f"Error loading CSV: {e}")
+    data = None
 
-# Root test route
+# Root route for testing
 @app.route("/")
 def home():
-    return "✅ KrishiMitra Flask API is running!"
+    return "✅ KrishiMitra API is running!"
 
+# Recommendation route
 @app.route("/recommend", methods=["POST"])
-def recommend_crop():
+def recommend():
     if not data:
         return jsonify({"error": "Data not available"}), 500
 
     try:
         req = request.get_json()
-        soil_type = req.get("soil_type")
-        fallow_period = req.get("fallow_period")
+        soil = req.get("soil_type", "").lower()
+        fallow = req.get("fallow_period", "").lower()
 
         filtered = data[
-            (data["Soil Type"].str.lower() == soil_type.lower()) &
-            (data["Fallow Period"].str.lower() == fallow_period.lower())
+            (data["Soil Type"].str.lower() == soil) &
+            (data["Fallow Period"].str.lower() == fallow)
             ]
 
         if filtered.empty:
-            return jsonify({"error": "No matching data found"}), 404
+            return jsonify({"error": "No matching crop found"}), 404
 
         crop = filtered.iloc[0]["Crop"]
         return jsonify({"recommended_crop": crop})
     except Exception as e:
-        logger.error(f"Error in /recommend: {e}")
+        logger.error(f"Recommendation error: {e}")
         return jsonify({"error": "Internal Server Error"}), 500
 
+# Optional main block for local testing
+if __name__ == "__main__":
+    app.run(debug=True)
