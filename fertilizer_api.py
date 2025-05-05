@@ -31,11 +31,9 @@ def recommend():
         soil = req.get("soil_type", "").lower()
         fallow = req.get("fallow_period", "").lower()
 
-        logger.info(f"Filtering for soil: {soil}, fallow: {fallow}")
-
         filtered = data[
             (data["Soil_type"].str.lower() == soil) &
-            (data["Fallow_Period"].str.lower() == fallow)
+            (data["Fallow_period"].str.lower() == fallow)
             ]
 
         if filtered.empty:
