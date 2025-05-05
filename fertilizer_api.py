@@ -10,8 +10,7 @@ logger = logging.getLogger(__name__)
 # Load CSV
 try:
     data = pd.read_csv("chittor_final1.csv")
-    data.columns = data.columns.str.strip()  # Clean column names (remove extra spaces)
-    logger.info(f"CSV Columns: {data.columns.tolist()}")
+    logger.info("CSV loaded successfully.")
 except Exception as e:
     logger.error(f"Error loading CSV: {e}")
     data = None
@@ -24,24 +23,25 @@ def home():
 # Recommendation route
 @app.route("/recommend", methods=["POST"])
 def recommend():
-    if not data:
+    if data is None or data.empty:
         return jsonify({"error": "Data not available"}), 500
 
     try:
         req = request.get_json()
-        soil = req.get("soil_type", "").lower()  # Get soil_type from request
-        fallow = req.get("fallow_period", "").lower()  # Get fallow_period from request
+        soil = req.get("soil_type", "").lower()
+        fallow = req.get("fallow_period", "").lower()
 
-        # Filter using correct column names
+        logger.info(f"Filtering for soil: {soil}, fallow: {fallow}")
+
         filtered = data[
-            (data["Soil_type"].str.lower() == soil) &  # Correct column name
-            (data["Fallow Period"].str.lower() == fallow)  # Correct column name
+            (data["Soil_type"].str.lower() == soil) &
+            (data["Fallow_Period"].str.lower() == fallow)
             ]
 
         if filtered.empty:
             return jsonify({"error": "No matching crop found"}), 404
 
-        crop = filtered.iloc[0]["Crop_type"]  # Correct column name
+        crop = filtered.iloc[0]["Crop_type"]
         return jsonify({"recommended_crop": crop})
     except Exception as e:
         logger.error(f"Recommendation error: {e}")
